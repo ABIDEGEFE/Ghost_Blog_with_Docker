@@ -59,8 +59,12 @@ production stylesheet in assets/built/screen.css
 
 }
 
+
+.sentence.highlight {
+    background: yellow !important;
+    color: white !important;
+}
 .audio-reader {
-    background: #f4f4f4;
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 25px;

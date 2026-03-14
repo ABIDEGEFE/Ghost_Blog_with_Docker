@@ -93,6 +93,7 @@ into the {body} tag of the default.hbs template --}}
 
         </audio>
 
+
         <div class="audio-controls">
 
             <button onclick="setSpeed(0.75)">0.75x</button>
@@ -104,9 +105,10 @@ into the {body} tag of the default.hbs template --}}
 
     </div>
 
-    <section class="gh-content gh-canvas">
+    <section class="gh-content gh-canvas" id="post-content">
         {{content}}
     </section>
+  
 
     {{#if comments}}
         <section class="article-comments gh-canvas">
