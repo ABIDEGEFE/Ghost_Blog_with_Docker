@@ -1,21 +1,18 @@
 :80 {
 
-    route {
-        # OAuth2 Proxy endpoints
-        handle_path /oauth2/* {
-            reverse_proxy localhost:4180
-        }
-
-        # Protect everything else
-        handle {
-            forward_auth localhost:4180 {
-                uri /oauth2/auth
-                copy_headers X-Auth-Request-User X-Auth-Request-Email
-            }
-
-            reverse_proxy localhost:2368
-        }
+    # OAuth2 endpoints → oauth2-proxy
+    handle /oauth2/* {
+        reverse_proxy localhost:4180
     }
 
+    # All other requests → protected Ghost
+    handle {
+        forward_auth localhost:4180 {
+            uri /oauth2/auth
+            copy_headers X-Auth-Request-User X-Auth-Request-Email
+        }
+
+        reverse_proxy localhost:2368
+    }
 }
 
