@@ -1,8 +1,10 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify, redirect, make_response
 from TTS.api import TTS
 from urllib.parse import quote
 import requests
 import subprocess
+import jwt
+import time
 import os
 
 app = Flask(__name__)
@@ -13,6 +15,61 @@ tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
 
 GHOST_URL = "http://localhost:2368"
 CONTENT_API_KEY = "4076763c15f0f6f4d648483771"
+
+GHOST_ADMIN_API = "http://localhost:2368/ghost/api/admin"
+ADMIN_API_KEY = "69b8fa07941dc23a009ebff0:18342f97c02a85dee2db4515e48826da2053a1adc27a1a332e9e72cb43542833"
+
+
+def generate_ghost_token():
+    key_id, secret = ADMIN_API_KEY.split(":")
+
+    iat = int(time.time())
+    exp = iat + 5 * 60  # 5 minutes
+
+    payload = {
+        "iat": iat,
+        "exp": exp,
+        "aud": "/admin/"
+    }
+
+    token = jwt.encode(payload, bytes.fromhex(secret), algorithm="HS256", headers={"kid": key_id})
+
+    return token
+
+
+def invite_user(email, role):
+    token = generate_ghost_token()
+
+    headers = {
+        "Authorization": f"Ghost {token}",
+        "Content-Type": "application/json"
+    }
+
+    role_map = {
+        "admin": "Administrator",
+        "editor": "Editor",
+        "author": "Author"
+    }
+
+    ghost_role_name = role_map.get(role, "Author")
+    role_id = get_role_id(ghost_role_name)
+
+    if not role_id:
+        print("Role not found:", ghost_role_name)
+        return
+
+    data = {
+        "invites": [{
+            "email": email,
+            "role_id": role_id   # ✅ FIXED
+        }]
+    }
+
+    url = f"{GHOST_ADMIN_API}/invites/"
+    res = requests.post(url, json=data, headers=headers)
+
+    print("Invite response:", res.status_code, res.text)
+
 
 # Ensure this directory exists
 AUDIO_DIR = "/home/abinet/Desktop/ghost-cms/content/themes/ghost-audio-theme/assets/audio"
@@ -77,7 +134,62 @@ def generate_audio():
 
     except Exception as e:
         print(f"System Error: {str(e)}")
-    return {"status": "error", "message": str(e)}, 500
+        return {"status": "error", "message": str(e)}, 500
+
+def get_roles():
+    token = generate_ghost_token()
+
+    headers = {
+        "Authorization": f"Ghost {token}"
+    }
+
+    url = f"{GHOST_ADMIN_API}/roles/"
+    res = requests.get(url, headers=headers).json()
+
+    roles = res.get("roles", [])
+
+    for r in roles:
+        print(r["name"], "→", r["id"])
+
+    return roles
+
+def get_role_id(role_name):
+    roles = get_roles()
+
+    for r in roles:
+        if r["name"].lower() == role_name.lower():
+            return r["id"]
+
+    return None
+
+@app.route("/sync-user", methods=["GET"])
+def sync_user():
+    email = request.headers.get("X-Auth-Request-Email")
+    roles = request.headers.get("X-Auth-Request-Groups", "")
+    print("req................ppp", request.headers)
+    print("Email:", email)
+    print("Raw Roles:", roles)
+
+    # Convert roles string → list
+    role_list = [r.strip() for r in roles.split(",")]
+
+    # Filter only meaningful roles
+    allowed_roles = ["admin", "editor", "author"]
+
+    user_role = None
+    for r in role_list:
+        if r in allowed_roles:
+            user_role = r
+            break
+    print("Filtered Role:", user_role)
+   
+    if email and user_role:
+        invite_user(email, user_role)
+
+    response = make_response(redirect("/"))
+    response.set_cookie("synced", "true", max_age=300)  # 5 min
+
+    return response
 
 
 if __name__ == "__main__":
