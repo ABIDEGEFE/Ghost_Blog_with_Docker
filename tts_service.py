@@ -77,7 +77,8 @@ def generate_audio():
 
     except Exception as e:
         print(f"System Error: {str(e)}")
-        return {"status": "error", "message": str(e)}, 500
+    return {"status": "error", "message": str(e)}, 500
+
 
 if __name__ == "__main__":
     # Use threaded=True to prevent the UI from freezing during TTS generation

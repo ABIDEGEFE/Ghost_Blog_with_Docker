@@ -1,18 +1,20 @@
 :80 {
 
-    # OAuth2 endpoints → oauth2-proxy
     handle /oauth2/* {
         reverse_proxy localhost:4180
     }
 
-    # All other requests → protected Ghost
     handle {
         forward_auth localhost:4180 {
             uri /oauth2/auth
-            copy_headers X-Auth-Request-User X-Auth-Request-Email
+            copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
         }
 
-        reverse_proxy localhost:2368
+        reverse_proxy localhost:5000 {
+            header_up X-Auth-Request-User {http.request.header.X-Auth-Request-User}
+            header_up X-Auth-Request-Email {http.request.header.X-Auth-Request-Email}
+            header_up X-Auth-Request-Groups {http.request.header.X-Auth-Request-Groups}
+        }
     }
 }
 
