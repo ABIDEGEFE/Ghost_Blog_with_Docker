@@ -4,7 +4,8 @@
         reverse_proxy localhost:4180
     }
 
-    handle {
+    # Sync endpoint → Flask
+    handle /sync-user {
         forward_auth localhost:4180 {
             uri /oauth2/auth
             copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
@@ -16,5 +17,23 @@
             header_up X-Auth-Request-Groups {http.request.header.X-Auth-Request-Groups}
         }
     }
-}
 
+    # 👇 FORCE sync BEFORE accessing Ghost
+
+   handle {
+    forward_auth localhost:4180 {
+        uri /oauth2/auth
+        copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+    }
+
+    # 👇 Only redirect IF NOT synced
+    @notSynced {
+        not path /sync-user
+        not header Cookie *synced=true*
+    }
+
+    redir @notSynced /sync-user 302
+
+    reverse_proxy localhost:2368
+}
+}
