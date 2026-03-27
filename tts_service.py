@@ -10,7 +10,6 @@ import os
 app = Flask(__name__)
 
 # Load TTS model (Note: This may take a moment on startup)
-# Using a slightly faster model for your i5 CPU
 tts = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
 
 GHOST_URL = "http://localhost:2368"
@@ -52,6 +51,7 @@ def invite_user(email, role):
     }
 
     ghost_role_name = role_map.get(role, "Author")
+    print("this is current user role............***********####### ", ghost_role_name)
     role_id = get_role_id(ghost_role_name)
 
     if not role_id:
@@ -61,7 +61,7 @@ def invite_user(email, role):
     data = {
         "invites": [{
             "email": email,
-            "role_id": role_id   # ✅ FIXED
+            "role_id": role_id  
         }]
     }
 
@@ -185,8 +185,10 @@ def sync_user():
    
     if email and user_role:
         invite_user(email, user_role)
-
-    response = make_response(redirect("/"))
+    if user_role in allowed_roles:
+        response = make_response(redirect("/ghost"))
+    else:
+        response = make_response(redirect("/"))
     response.set_cookie("synced", "true", max_age=300)  # 5 min
 
     return response
