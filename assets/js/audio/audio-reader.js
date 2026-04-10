@@ -1,7 +1,7 @@
-const audio = document.getElementById("audioPlayer");
+// const audio = document.getElementById("audioPlayer");
 
-function setSpeed(rate) {
-    if(audio){
-        audio.playbackRate = rate;
-    }
-}
+// function setSpeed(rate) {
+//     if(audio){
+//         audio.playbackRate = rate;
+//     }
+// }

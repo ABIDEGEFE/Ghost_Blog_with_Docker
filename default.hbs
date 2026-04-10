@@ -81,10 +81,10 @@
     <footer class="site-footer outer">
         <div class="inner">
             <section class="copyright"><a href="{{@site.url}}">{{@site.title}}</a> &copy; {{date format="YYYY"}}</section>
-            <nav class="site-footer-nav">
+            {{!-- <nav class="site-footer-nav">
                 {{navigation type="secondary"}}
-            </nav>
-            <div class="gh-powered-by"><a href="https://ghost.org/" target="_blank" rel="noopener">{{t "Powered by Ghost"}}</a></div>
+            </nav> --}}
+            {{!-- <div class="gh-powered-by"><a href="https://ghost.org/" target="_blank" rel="noopener">{{t "Powered by Ghost"}}</a></div> --}}
         </div>
     </footer>
 
@@ -115,8 +115,8 @@ $(document).ready(function () {
 
 {{!-- Ghost outputs required functional scripts with this tag - it should always be the last thing before the closing body tag --}}
 {{ghost_foot}}
-<script src="{{asset "js/audio/audio-reader.js"}}"></script>
+{{!-- <script src="{{asset "js/audio/audio-reader.js"}}"></script>
 <script src="{{asset "js/mark.min.js"}}"></script>
-<script src="{{asset "js/audio-highlight.js"}}"></script>
+<script src="{{asset "js/audio-highlight.js"}}"></script> --}}
 </body>
 </html>

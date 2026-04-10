@@ -82,13 +82,11 @@ into the {body} tag of the default.hbs template --}}
 
     </header>
 
-    <div class="audio-reader">
+    {{!-- <div class="audio-reader">
 
         <h3>🔊 Listen to this article</h3>
 
         <audio id="audioPlayer" controls>
-            {{!-- <source src="/content/audio/{{slug}}.mp3" type="audio/mpeg"> --}}
-            {{!-- <source src="/content/audio/sample-3s.mp3" type="audio/mpeg"> --}}
             <source src="{{asset (concat "audio/" slug ".mp3")}}" type="audio/mpeg">
 
         </audio>
@@ -103,7 +101,7 @@ into the {body} tag of the default.hbs template --}}
 
         </div>
 
-    </div>
+    </div> --}}
 
     <section class="gh-content gh-canvas" id="post-content">
         {{content}}
@@ -150,6 +148,8 @@ into the {body} tag of the default.hbs template --}}
 
         {{#if more_posts}}
             <aside class="read-more-wrap outer">
+
+           <h1 class="read-more-title">keep reading</h1>
                 <div class="read-more inner">
                     {{#foreach more_posts}}
                         {{> "post-card"}}

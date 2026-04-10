@@ -60,7 +60,7 @@ production stylesheet in assets/built/screen.css
 }
 
 
-.sentence.highlight {
+/* .sentence.highlight {
     background: yellow !important;
     color: white !important;
 }
@@ -73,7 +73,7 @@ production stylesheet in assets/built/screen.css
 .audio-controls button {
     margin-right: 8px;
     padding: 5px 10px;
-}
+} */
 /* 2. Layout - Page building blocks
 /* ---------------------------------------------------------- */
 
@@ -1867,6 +1867,12 @@ iframe.instagram-media + script + :not([id]) {
 
 .read-more-wrap {
     margin-top: 2.4vmin;
+}
+
+.read-more-title {
+    margin: 0 0 max(4vmin, 24px);
+    text-align: center;
+    text-transform: lowercase;
 }
 
 .footer-cta + .read-more-wrap {
