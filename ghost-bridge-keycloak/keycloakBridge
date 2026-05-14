@@ -1,0 +1,11 @@
+docker run -d --name ghost-sso-bridge \
+  -p 3000:3000 \
+  -v /home/abinet/Desktop/ghost-cms/content/data:/data \
+  -e IDP_ISSUER_URL=http://host.docker.internal:8080/realms/ghost-realm \
+  -e IDP_CLIENT_ID=ghost-sso \
+  -e IDP_CLIENT_SECRET="xpvBKLLZQkAMldFFUNOySZEU7xogPFze" \
+  -e GHOST_URL=http://host.docker.internal:2368 \
+  -e GHOST_ADMIN_API_KEY="69b8fa07941dc23a009ebff0:18342f97c02a85dee2db4515e48826da2053a1adc27a1a332e9e72cb43542833" \
+  -e DB_CLIENT=sqlite3 \
+  -e DB_FILENAME=/data/ghost-local.db \
+  dscsa/ghost-keycloak-bridge:latest

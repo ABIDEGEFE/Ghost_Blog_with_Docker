@@ -1,0 +1,76 @@
+:80 {
+
+    # ----------------------------------------
+    # 1. OAuth2 Proxy Endpoints
+    # ----------------------------------------
+    handle /oauth2/* {
+        reverse_proxy localhost:4180
+    }
+
+    # ----------------------------------------
+    # 2. Sync Endpoint (Flask decides redirect)
+    # ----------------------------------------
+    handle /sync-user {
+
+        forward_auth localhost:4180 {
+            uri /oauth2/auth
+            copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+        }
+
+        reverse_proxy localhost:5000 {
+            header_up X-Auth-Request-User {http.request.header.X-Auth-Request-User}
+            header_up X-Auth-Request-Email {http.request.header.X-Auth-Request-Email}
+            header_up X-Auth-Request-Groups {http.request.header.X-Auth-Request-Groups}
+        }
+    }
+
+    # ----------------------------------------
+    # 3. Protect Ghost Admin (/ghost)
+    # ----------------------------------------
+    handle /ghost* {
+
+        forward_auth localhost:4180 {
+            uri /oauth2/auth
+            copy_headers X-Auth-Request-Groups
+        }
+
+        # Allow only staff
+        @notStaff {
+            expression `!(
+                {http.request.header.X-Auth-Request-Groups}.contains("author") ||
+                {http.request.header.X-Auth-Request-Groups}.contains("editor") ||
+                {http.request.header.X-Auth-Request-Groups}.contains("admin")
+            )`
+        }
+
+        respond @notStaff "Forbidden - Staff only" 403
+
+        reverse_proxy localhost:2368
+    }
+
+    # ----------------------------------------
+    # 4. Main Site (Frontend)
+    # ----------------------------------------
+    handle {
+
+        # Authenticate user
+        forward_auth localhost:4180 {
+            uri /oauth2/auth
+            copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+        }
+
+        # Sync trigger (only for normal GET requests)
+        @needsSync {
+            method GET
+            not path /sync-user
+            not path /ghost/api/*
+            not path /ghost/*
+            not header Cookie *synced=true*
+        }
+
+        redir @needsSync /sync-user 302
+
+        # Serve Ghost frontend
+        reverse_proxy localhost:2368
+    }
+}
