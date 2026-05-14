@@ -1,0 +1,86 @@
+# PostgreSQL for Keycloak
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: keycloak-db
+spec:
+  serviceName: "keycloak-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak-db
+  template:
+    metadata:
+      labels:
+        app: keycloak-db
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15
+        env:
+        - name: POSTGRES_DB
+          value: "keycloak"
+        - name: POSTGRES_USER
+          value: "keycloak"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: keycloak-db-password
+        volumeMounts:
+        - name: keycloak-db-data
+          mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+  - metadata:
+      name: keycloak-db-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi
+---
+# MySQL for Ghost
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ghost-db
+spec:
+  serviceName: "ghost-db"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost-db
+  template:
+    metadata:
+      labels:
+        app: ghost-db
+    spec:
+      containers:
+      - name: mysql
+        image: mysql:8.0
+        env:
+        - name: MYSQL_DATABASE
+          value: "ghost"
+        - name: MYSQL_USER
+          value: "ghost"
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: ghost-db-password
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: ghost-db-password
+        volumeMounts:
+        - name: ghost-db-data
+          mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+  - metadata:
+      name: ghost-db-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 2Gi

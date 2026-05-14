@@ -1,0 +1,139 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+  namespace: cms-iam
+data:
+  Caddyfile: |
+    :80 {
+
+        # -----------------------------
+        # 1. BYPASS AUTH
+        # -----------------------------
+        handle /oauth2/* {
+            reverse_proxy oauth2-proxy:4180
+        }
+
+        handle /realms/* {
+            reverse_proxy keycloak:8080
+        }
+
+        handle /resources/* {
+            reverse_proxy keycloak:8080
+        }
+
+
+        # -----------------------------
+        # 2. AUTHENTICATION
+        # -----------------------------
+        # @auth {
+        #     not path /ghost*
+        # }
+        handle {
+            forward_auth oauth2-proxy:4180 {
+                uri /oauth2/auth
+                copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups
+
+                handle_response {
+                    @unauth expression `{rp.status_code} == 401`
+                    redir @unauth /oauth2/start?rd={scheme}://{host}{uri}
+                }
+            }
+
+            @root {
+               path /
+            }
+
+            @staff {
+                expression `
+
+                (
+                   {http.request.header.X-Auth-Request-Groups}.contains("editor")
+                )
+
+                `
+            }
+
+            handle @root {
+                redir @staff /ghost/ 302
+            }
+
+            handle /ghost/api/admin* {
+                @notstaff expression `
+                    
+                    (
+                     !{http.request.header.X-Auth-Request-Groups}.contains("editor")
+                    )   
+
+                `
+                respond @notstaff "Page not found" 403
+
+                reverse_proxy ghost:2368
+            }
+
+            reverse_proxy ghost:2368
+        }
+
+            # -----------------------------
+            # 3. STAFF ROOT REDIRECT
+            # -----------------------------
+            # @root {
+            #     path /
+            # }
+
+            # @staff {
+            #     expression `
+
+            #     (
+            #        {http.request.header.X-Auth-Request-Groups}.contains("editor")
+            #     )
+                
+            #     ` 
+            # }
+
+            # handle @root {
+            #     redir @staff /ghost/ 302
+            # }
+
+            # -----------------------------
+            # 4. GHOST ADMIN PROTECTION
+            # -----------------------------
+            # @ghost {
+            #     path /ghost*
+            # }
+
+            # handle @ghost {
+            #    @notstaff expression `
+                
+            #         (
+            #         !{http.request.header.X-Auth-Request-Groups}.contains("editor")
+            #         )   
+
+            #     `
+            #     respond @notstaff "Page not found" 403
+
+            #     reverse_proxy ghost:2368
+            # }
+             
+        #    @adminApi path /ghost/api/admin*
+
+        #    handle @adminApi {
+        #      @notstaff expression `
+             
+        #         (
+        #           !{http.request.header.X-Auth-Request-Groups}.contains("editor")
+        #         )
+             
+        #      `
+        #      respond @notstaff "page not found" 403
+
+        #      reverse_proxy ghost:2368
+        #    }
+            # -----------------------------
+            # 5. DEFAULT (BLOG)
+            # -----------------------------
+
+
+        #    reverse_proxy ghost:2368
+        #   }
+    }

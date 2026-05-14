@@ -1,0 +1,249 @@
+# Keycloak
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: keycloak
+  template:
+    metadata:
+      labels:
+        app: keycloak
+    spec:
+      containers:
+      - name: keycloak
+        image: quay.io/keycloak/keycloak:24.0
+        args: ["start","--proxy=edge", "--hostname-strict=false"]
+        ports:
+        - name: http
+          containerPort: 8080 # This is the internal container port
+          protocol: TCP
+        env:
+        - name: KC_PROXY
+          value: "edge"
+        - name: KC_HOSTNAME
+          value: "host-name-ip"
+        - name: KC_HOSTNAME_PORT
+          value: "31854"
+        - name: KC_HOSTNAME_STRICT
+          value: "false"
+        - name: KC_HOSTNAME_STRICT_HTTPS
+          value: "false"
+            #- name: KC_PROXY_HEADERS
+            #value: "xforwarded"
+        - name: KC_HTTP_RELATIVE_PATH
+          value: "/"
+        - name: KC_DB
+          value: "postgres"
+        - name: KC_DB_URL
+          value: "jdbc:postgresql://keycloak-db:5432/keycloak"
+        - name: KC_DB_USERNAME
+          value: "keycloak"
+        - name: KC_HTTP_ENABLED
+          value: "true"
+        - name: KC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: keycloak-db-password
+        - name: KEYCLOAK_ADMIN
+          value: "admin"
+        - name: KEYCLOAK_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: keycloak-admin-password
+---              
+# Ghost CMS
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ghost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ghost
+  template:
+    metadata:
+      labels:
+        app: ghost
+    spec:
+      initContainers:
+      - name: copy-theme
+        image: abinetdegefa/ghost-custom:v1
+        command:
+          - sh
+          - -c
+          - |
+            echo "Copying theme..."
+            cp -rn /var/lib/ghost/content/themes/ghost-audio-theme /mnt/themes/ || true
+        volumeMounts:
+        - name: ghost-content
+          mountPath: /mnt/themes
+      containers:
+      - name: ghost
+        image: ghost:5
+        env:
+        - name: database__client
+          value: "mysql"
+        - name: database__connection__host
+          value: "ghost-db"
+        - name: database__connection__user
+          value: "ghost"
+        - name: database__connection__password
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: ghost-db-password
+           
+
+        - name: mail__transport
+          value: "SMTP"
+
+        - name: mail__options__service
+          value: "Gmail"
+
+        - name: mail__options__host
+          value: "smtp.gmail.com"
+
+        - name: mail__options__port
+          value: "587"
+
+        - name: mail__options__auth__user
+          value: "agonaferdegefe@gmail.com"
+
+        - name: mail__options__auth__pass
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: smtp-password
+
+        - name: mail__options__secure
+          value: "false"
+
+        - name: mail__from
+          value: "Ghost CMS <agonaferdegefe@gmail.com>"
+
+        - name: url
+          value: "url-value" # your server ip address where ghost is running
+        - name: NODE_ENV
+          value: "production"
+        volumeMounts:
+        - name: ghost-content
+          mountPath: /var/lib/ghost/content/themes
+      volumes:
+      - name: ghost-content
+        persistentVolumeClaim:
+          claimName: ghost-content-pvc
+---
+# OAuth2 Proxy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app: oauth2-proxy
+    spec:
+      containers:
+      - name: oauth2-proxy
+        image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+        ports:
+        - containerPort: 4180
+        env:
+        - name: OAUTH2_PROXY_PROVIDER
+          value: "keycloak-oidc"
+        - name: OAUTH2_PROXY_CLIENT_ID
+          value: "ghost-sso" # Matches your Realm
+        - name: OAUTH2_PROXY_OIDC_EXTRA_AUDIENCES
+          value: "account"
+        - name: OAUTH2_PROXY_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: oauth2-client-secret
+        - name: OAUTH2_PROXY_COOKIE_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: oauth2-cookie-secret
+        - name: OAUTH2_PROXY_COOKIE_SECURE
+          value: "false"
+        - name: OAUTH2_PROXY_COOKIE_DOMAINS
+          value: "ip-address" # Set this to your IP, NOT including the port
+            #- name: OAUTH2_PROXY_WHITELIST_DOMAINS
+            #value: "ip-address"
+        - name: OAUTH2_PROXY_COOKIE_SAMESITE
+          value: "lax"
+        - name: OAUTH2_PROXY_OIDC_GROUPS_CLAIM
+          value: "groups" # Or whatever claim name you used in Keycloak
+        - name: OAUTH2_PROXY_COOKIE_PATH
+          value: "/"
+            #- name: OAUTH2_PROXY_ALLOWED_GROUPS
+            #value: "admin,editor,author"
+        - name: OAUTH2_PROXY_COOKIE_CSRF_PER_REQUEST
+          value: "true"
+        - name: OAUTH2_PROXY_LOGIN_URL
+          value: "http://ip-address:31854/realms/LearnMore/protocol/openid-connect/auth"
+        - name: OAUTH2_PROXY_REDEEM_URL
+          value: "http://keycloak:8080/realms/LearnMore/protocol/openid-connect/token"
+        - name: OAUTH2_PROXY_OIDC_JWKS_URL
+          value: "http://keycloak:8080/realms/LearnMore/protocol/openid-connect/certs"
+        - name: OAUTH2_PROXY_REDIRECT_URL
+          value: "http://ip-address:31854/oauth2/callback"
+        - name: OAUTH2_PROXY_VALIDATE_URL
+          value: "http://keycloak.cms-iam.svc.cluster.local:8080/realms/LearnMore/protocol/openid-connect/userinfo"
+        - name: OAUTH2_PROXY_OIDC_ISSUER_URL
+          value: "http://keycloak.cms-iam.svc.cluster.local:8080/realms/LearnMore"
+        - name: OAUTH2_PROXY_INSECURE_OIDC_SKIP_ISSUER_VERIFICATION
+          value: "true"
+        - name: OAUTH2_PROXY_REVERSE_PROXY
+          value: "true"
+        - name: OAUTH2_PROXY_HTTP_ADDRESS
+          value: "0.0.0.0:4180"
+        - name: OAUTH2_PROXY_EMAIL_DOMAINS
+          value: "*"
+        - name: OAUTH2_PROXY_SET_XAUTHREQUEST
+          value: "true"
+        - name: OAUTH2_PROXY_PASS_ACCESS_TOKEN
+          value: "true"
+        - name: OAUTH2_PROXY_PASS_USER_HEADERS
+          value: "true"
+        - name: OAUTH2_PROXY_SKIP_PROVIDER_BUTTON
+          value: "true"
+---
+# Flask Sync Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flask
+  template:
+    metadata:
+      labels:
+        app: flask
+    spec:
+      containers:
+      - name: flask
+        image: abinetdegefa/iam-ghost-cms-flask:v15
+        env:
+        - name: GHOST_ADMIN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: portal-secrets
+              key: ghost-admin-api-key
+          
